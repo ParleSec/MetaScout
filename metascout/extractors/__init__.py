@@ -9,22 +9,20 @@ from typing import Optional, Type, List
 
 from .base import BaseExtractor
 from .image import ImageExtractor
-# Import other extractors as they are implemented
-# from .document import DocumentExtractor
-# from .audio import AudioExtractor
-# from .video import VideoExtractor
-# from .executable import ExecutableExtractor
-# from .generic import GenericExtractor
+from .document import DocumentExtractor
+from .audio import AudioExtractor
+from .video import VideoExtractor
+from .executable import ExecutableExtractor
+from .generic import GenericExtractor
 
 # Register all available extractors
 EXTRACTORS = [
     ImageExtractor,
-    # Will add other extractors as they are implemented
-    # DocumentExtractor,
-    # AudioExtractor,
-    # VideoExtractor,
-    # ExecutableExtractor,
-    # GenericExtractor,
+    DocumentExtractor,
+    AudioExtractor,
+    VideoExtractor,
+    ExecutableExtractor,
+    GenericExtractor,
 ]
 
 def get_extractor_for_file(file_path: str, mime_type: Optional[str] = None) -> Optional[BaseExtractor]:
