@@ -411,11 +411,10 @@ def create_image_files():
             exif_bytes = piexif.dump(exif_dict)
             
             # Draw something on the image
-            if hasattr(img, 'draw'):
-                from PIL import ImageDraw, ImageFont
-                draw = ImageDraw.Draw(img)
-                draw.rectangle([50, 50, 750, 550], outline=(255, 255, 255), width=2)
-                draw.text((400, 300), "MetaScout Demo Image", fill=(255, 255, 255), anchor="mm")
+            from PIL import ImageDraw, ImageFont
+            draw = ImageDraw.Draw(img)
+            draw.rectangle([50, 50, 750, 550], outline=(255, 255, 255), width=2)
+            draw.text((400, 300), "MetaScout Demo Image", fill=(255, 255, 255), anchor="mm")
             
             # Save with EXIF data
             img.save(jpg_file, "JPEG", exif=exif_bytes, quality=95)
@@ -432,20 +431,19 @@ def create_image_files():
                 draw = ImageDraw.Draw(img)
                 draw.rectangle([50, 50, 750, 550], outline=(255, 255, 255, 255), width=2)
                 draw.text((400, 300), "MetaScout Demo PNG", fill=(255, 255, 255, 255), anchor="mm")
-            
-            # Add metadata using PngInfo
-            meta = Image.PngImagePlugin.PngInfo()
-            meta.add_text("Author", "MetaScout Demo")
-            meta.add_text("Title", "Sample PNG Image")
-            meta.add_text("Description", "This is a sample PNG image with metadata")
-            meta.add_text("Copyright", "Example Corp. 2025")
-            meta.add_text("Creation Time", datetime.datetime.now().isoformat())
-            meta.add_text("Software", "MetaScout Demo Script")
-            
-            # Save with metadata
-            img.save(png_file, "PNG", pnginfo=meta)
-            print_success(f"Created PNG file with metadata: {png_file}")
-            files_created.append(png_file)
+                # Add metadata using PngInfo
+                meta = Image.PngImagePlugin.PngInfo()
+                meta.add_text("Author", "MetaScout Demo")
+                meta.add_text("Title", "Sample PNG Image")
+                meta.add_text("Description", "This is a sample PNG image with metadata")
+                meta.add_text("Copyright", "Example Corp. 2025")
+                meta.add_text("Creation Time", datetime.datetime.now().isoformat())
+                meta.add_text("Software", "MetaScout Demo Script")
+                
+                # Save with metadata
+                img.save(png_file, "PNG", pnginfo=meta)
+                print_success(f"Created PNG file with metadata: {png_file}")
+                files_created.append(png_file)
             
         except Exception as e:
             print_error(f"Failed to create image file with metadata: {e}")
