@@ -41,6 +41,9 @@ python -m unittest tests.test_core.TestCoreUtils.test_compute_file_hashes -v
 - **`basic.py`** - Basic functionality tests (legacy, for compatibility)
 - **`test_core.py`** - Core functionality tests (models, utils, processor)
 - **`test_analyzers.py`** - Analyzer and pattern matching tests
+- **`test_extractors.py`** - Extractor system unit tests
+- **`test_integration.py`** - End-to-end integration tests
+- **`test_operations.py`** - Operations module tests
 - **`run_tests.py`** - Custom test runner with colored output
 
 ## Test Structure
@@ -54,6 +57,24 @@ python -m unittest tests.test_core.TestCoreUtils.test_compute_file_hashes -v
 - **TestPatternAnalyzer**: Pattern detection (emails, phones, SSNs, etc.)
 - **TestAnalyzerSystem**: Analyzer selection and integration
 - **TestAdvancedPatterns**: Complex pattern scenarios
+
+### Extractor Tests (`test_extractors.py`)
+- **TestBaseExtractor**: Base extractor interface validation
+- **TestGenericExtractor**: Generic file metadata extraction
+- **TestImageExtractor**: Image-specific metadata extraction
+- **TestDocumentExtractor**: Document processing tests
+- **TestExtractorSystem**: Extractor selection and integration
+
+### Integration Tests (`test_integration.py`)
+- **TestEndToEndWorkflow**: Complete processing workflow
+- **TestErrorHandling**: Error handling scenarios
+- **TestConfigurationIntegration**: Configuration options testing
+
+### Operations Tests (`test_operations.py`)
+- **TestAnalyzeOperation**: File analysis operations
+- **TestBatchOperation**: Batch processing operations
+- **TestCompareOperation**: File comparison operations
+- **TestRedactOperation**: Data redaction operations
 
 ## Dependencies
 
@@ -71,12 +92,16 @@ The test suite requires all MetaScout dependencies to be installed. Optional dep
 
 The test suite covers:
 
-✅ **Core Models** - FileMetadata, MetadataFinding  
-✅ **Utility Functions** - Hashing, file type detection, timestamps  
-✅ **File Processing** - Basic processing workflow  
-✅ **Pattern Analysis** - Privacy-sensitive data detection  
-✅ **Analyzer System** - Analyzer selection and integration  
+✅ **Core Models** - FileMetadata, MetadataFinding creation and serialization  
+✅ **Utility Functions** - Hashing, file type detection, timestamps, path sanitization  
+✅ **File Processing** - Complete processing workflow with options  
+✅ **Pattern Analysis** - Privacy-sensitive data detection (emails, phones, SSNs, URLs, IPs)  
+✅ **Analyzer System** - Analyzer selection, integration, and findings format  
+✅ **Extractor System** - File-type specific metadata extraction  
+✅ **Integration Testing** - End-to-end workflows with multiple file types  
+✅ **Operations** - Batch processing, analysis, comparison, redaction  
 ✅ **Error Handling** - Graceful handling of missing files/dependencies  
+✅ **Configuration** - Processing options and settings  
 
 ## Adding New Tests
 
