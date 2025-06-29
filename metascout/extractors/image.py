@@ -104,6 +104,17 @@ class ImageExtractor(BaseExtractor):
                         metadata['exif'][tag_name] = str(value)
             
             return metadata
+        except FileNotFoundError:
+            return {'error': f'Image file not found: {file_path}'}
+        except PermissionError:
+            return {'error': f'Permission denied accessing image file: {file_path}'}
         except Exception as e:
-            logging.error(f"Error extracting image metadata from {file_path}: {e}")
-            return {'error': str(e)}
+            # Check for common image-related errors
+            error_msg = str(e).lower()
+            if 'truncated' in error_msg or 'incomplete' in error_msg:
+                return {'error': f'Image file appears to be corrupted or incomplete: {file_path}'}
+            elif 'cannot identify image file' in error_msg:
+                return {'error': f'File is not a valid image or format is not supported: {file_path}'}
+            else:
+                logging.error(f"Error extracting image metadata from {file_path}: {e}")
+                return {'error': f'Failed to extract image metadata: {str(e)}'}

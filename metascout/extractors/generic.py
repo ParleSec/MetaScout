@@ -69,9 +69,24 @@ class GenericExtractor(BaseExtractor):
                 metadata.update(self._examine_zip_content(file_path))
             
             return metadata
+        except FileNotFoundError:
+            return {'error': f'File not found: {file_path}'}
+        except PermissionError:
+            return {'error': f'Permission denied accessing file: {file_path}'}
+        except IsADirectoryError:
+            return {'error': f'Path is a directory, not a file: {file_path}'}
         except Exception as e:
-            logging.error(f"Error extracting generic metadata from {file_path}: {e}")
-            return {'error': str(e)}
+            # Provide more specific error messages
+            error_msg = str(e).lower()
+            if 'permission denied' in error_msg:
+                return {'error': f'Permission denied accessing file: {file_path}'}
+            elif 'no such file' in error_msg:
+                return {'error': f'File not found: {file_path}'}
+            elif 'is a directory' in error_msg:
+                return {'error': f'Path is a directory, not a file: {file_path}'}
+            else:
+                logging.error(f"Error extracting generic metadata from {file_path}: {e}")
+                return {'error': f'Failed to extract metadata: {str(e)}'}
     
     def _detect_text_file_info(self, file_path: str) -> Dict[str, Any]:
         """Detect encoding and basic info for text files."""
