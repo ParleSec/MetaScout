@@ -88,9 +88,15 @@ def compute_file_hashes(file_path: str) -> Dict[str, str]:
             hashes[name] = hash_obj.hexdigest()
             
         return hashes
+    except FileNotFoundError:
+        logging.error(f"File not found when computing hashes: {file_path}")
+        return {'error': f'File not found: {file_path}'}
+    except PermissionError:
+        logging.error(f"Permission denied when computing hashes: {file_path}")
+        return {'error': f'Permission denied: {file_path}'}
     except Exception as e:
         logging.error(f"Failed to compute hashes for {file_path}: {e}")
-        return {'error': str(e)}
+        return {'error': f'Hash computation failed: {str(e)}'}
 
 def detect_file_type(file_path: str) -> Tuple[str, str]:
     """
@@ -118,6 +124,18 @@ def detect_file_type(file_path: str) -> Tuple[str, str]:
                 description += f" ({ext} file)"
         
         return mime_type, description
+    except FileNotFoundError:
+        logging.error(f"File not found when detecting type: {file_path}")
+        return "unknown/unknown", f"File not found: {os.path.basename(file_path)}"
+    except PermissionError:
+        logging.error(f"Permission denied when detecting file type: {file_path}")
+        # Try to guess from extension even without reading the file
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext:
+            import mimetypes
+            mime_type, _ = mimetypes.guess_type(file_path)
+            return mime_type or "unknown/unknown", f"Permission denied, guessed from extension {ext}"
+        return "unknown/unknown", "Permission denied, unknown file type"
     except Exception as e:
         logging.error(f"Failed to detect file type for {file_path}: {e}")
         # Last resort - guess from extension
@@ -125,8 +143,8 @@ def detect_file_type(file_path: str) -> Tuple[str, str]:
         if ext:
             import mimetypes
             mime_type, _ = mimetypes.guess_type(file_path)
-            return mime_type or "unknown/unknown", f"Unknown file type with extension {ext}"
-        return "unknown/unknown", "Unknown file type"
+            return mime_type or "unknown/unknown", f"Detection failed, guessed from extension {ext}"
+        return "unknown/unknown", f"File type detection failed: {str(e)}"
 
 def get_file_timestamps(file_path: str) -> Dict[str, str]:
     """Get file creation, modification, and access times."""
@@ -137,9 +155,15 @@ def get_file_timestamps(file_path: str) -> Dict[str, str]:
             'modification_time': datetime.datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
             'access_time': datetime.datetime.fromtimestamp(stat_info.st_atime).isoformat()
         }
+    except FileNotFoundError:
+        logging.error(f"File not found when getting timestamps: {file_path}")
+        return {'error': f'File not found: {file_path}'}
+    except PermissionError:
+        logging.error(f"Permission denied when getting timestamps: {file_path}")
+        return {'error': f'Permission denied: {file_path}'}
     except Exception as e:
         logging.error(f"Failed to get timestamps for {file_path}: {e}")
-        return {}
+        return {'error': f'Timestamp extraction failed: {str(e)}'}
 
 def safe_path(file_path: str) -> Path:
     """
