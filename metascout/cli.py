@@ -12,6 +12,10 @@ from typing import Dict, List, Any, Optional
 from .core.utils import configure_logging
 from .core.models import FileMetadata
 from .core.processor import process_file, process_files
+from .core.exceptions import (
+    MetaScoutError, FileNotFoundError, ValidationError, 
+    format_error_for_cli, format_error_for_json
+)
 from .config.constants import VERSION, SUPPORTED_EXTENSIONS
 from .operations.analyze import write_report
 from .operations.compare import compare_metadata, generate_comparison_html
@@ -125,85 +129,152 @@ def main() -> int:
 
 def handle_analyze_command(args: argparse.Namespace) -> int:
     """Handle 'analyze' command."""
-    # Single file analysis
-    file_path = os.path.abspath(os.path.normpath(args.file))
-    if not os.path.isfile(file_path):
-        logging.error(f"Error: '{file_path}' is not a valid file.")
+    try:
+        # Validate input file
+        file_path = os.path.abspath(os.path.normpath(args.file))
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(file_path)
+        if not os.path.isfile(file_path):
+            raise ValidationError("file", file_path, "must be a file, not a directory")
+        
+        # Set up options
+        options = {
+            'skip_hashes': args.skip_hashes,
+            'skip_analysis': args.skip_analysis,
+            'yara_rules_path': args.yara_rules
+        }
+        
+        # Process the file
+        result = process_file(file_path, options)
+        
+        # Check for errors in the result and display them user-friendly
+        if result.errors:
+            for error_dict in result.errors:
+                if isinstance(error_dict, dict):
+                    print(f"⚠️  {error_dict.get('message', 'Unknown error occurred')}")
+                    if args.verbose and error_dict.get('details'):
+                        print(f"   Technical details: {error_dict['details']}")
+                    if error_dict.get('suggestions'):
+                        print("   Suggestions:")
+                        for suggestion in error_dict['suggestions']:
+                            print(f"   • {suggestion}")
+                else:
+                    print(f"⚠️  {error_dict}")
+        
+        # Output results
+        write_report([result], args.format, args.output)
+        return 0
+        
+    except MetaScoutError as e:
+        print(format_error_for_cli(e, args.verbose))
         return 1
-    
-    # Set up options
-    options = {
-        'skip_hashes': args.skip_hashes,
-        'skip_analysis': args.skip_analysis,
-        'yara_rules_path': args.yara_rules
-    }
-    
-    # Process the file
-    result = process_file(file_path, options)
-    
-    # Output results
-    write_report([result], args.format, args.output)
-    return 0
+    except Exception as e:
+        error_msg = format_error_for_cli(e, args.verbose)
+        print(error_msg)
+        return 1
 
 
 def handle_batch_command(args: argparse.Namespace) -> int:
     """Handle 'batch' command."""
-    path = os.path.abspath(os.path.normpath(args.path))
-    
-    if os.path.isfile(path):
-        # Single file mode
-        files = [path]
-    elif os.path.isdir(path):
-        # Directory mode
-        if args.recursive:
-            # Recursive walk
-            files = []
-            for root, _, filenames in os.walk(path):
-                for filename in filenames:
-                    files.append(os.path.join(root, filename))
+    try:
+        path = os.path.abspath(os.path.normpath(args.path))
+        
+        # Validate input path
+        if not os.path.exists(path):
+            raise FileNotFoundError(path)
+        
+        if os.path.isfile(path):
+            # Single file mode
+            files = [path]
+        elif os.path.isdir(path):
+            # Directory mode
+            try:
+                if args.recursive:
+                    # Recursive walk
+                    files = []
+                    for root, _, filenames in os.walk(path):
+                        for filename in filenames:
+                            files.append(os.path.join(root, filename))
+                else:
+                    # Non-recursive (just top directory)
+                    files = [os.path.join(path, f) for f in os.listdir(path) 
+                            if os.path.isfile(os.path.join(path, f))]
+            except PermissionError as e:
+                raise MetaScoutError(
+                    f"Permission denied accessing directory: {path}",
+                    str(e),
+                    [
+                        "Check directory permissions",
+                        "Run with appropriate privileges",
+                        "Try a different directory"
+                    ]
+                )
+            
+            # Apply file filters if specified
+            if args.filter:
+                import fnmatch
+                original_count = len(files)
+                files = [f for f in files if fnmatch.fnmatch(os.path.basename(f), args.filter)]
+                if not args.quiet:
+                    print(f"📁 Filter applied: {len(files)} files match pattern '{args.filter}' (from {original_count} total)")
+            
+            if args.exclude:
+                import fnmatch
+                original_count = len(files)
+                files = [f for f in files if not fnmatch.fnmatch(os.path.basename(f), args.exclude)]
+                if not args.quiet:
+                    print(f"📁 Exclusion applied: {len(files)} files remaining after excluding '{args.exclude}' (from {original_count})")
+            
+            # Apply max files limit if specified
+            if args.max_files > 0 and len(files) > args.max_files:
+                if not args.quiet:
+                    print(f"📁 Limiting to {args.max_files} files out of {len(files)} found")
+                files = files[:args.max_files]
         else:
-            # Non-recursive (just top directory)
-            files = [os.path.join(path, f) for f in os.listdir(path) 
-                    if os.path.isfile(os.path.join(path, f))]
+            raise ValidationError("path", path, "must be a file or directory")
         
-        # Apply file filters if specified
-        if args.filter:
-            import fnmatch
-            files = [f for f in files if fnmatch.fnmatch(os.path.basename(f), args.filter)]
+        if not files:
+            raise MetaScoutError(
+                "No files found to process",
+                None,
+                [
+                    "Check that the directory contains files",
+                    "Verify file filters are not too restrictive",
+                    "Try using --recursive for subdirectories",
+                    "Check file permissions"
+                                 ]
+             )
         
-        if args.exclude:
-            import fnmatch
-            files = [f for f in files if not fnmatch.fnmatch(os.path.basename(f), args.exclude)]
+        # Set up options
+        options = {
+            'skip_hashes': args.skip_hashes,
+            'max_workers': args.threads if args.threads > 0 else None,
+            'show_progress': not args.quiet,
+            'yara_rules_path': args.yara_rules
+        }
         
-        # Apply max files limit if specified
-        if args.max_files > 0 and len(files) > args.max_files:
-            logging.info(f"Limiting to {args.max_files} files out of {len(files)} found")
-            files = files[:args.max_files]
-    else:
-        logging.error(f"Error: '{path}' is not a valid file or directory.")
+        # Process files
+        if not args.quiet:
+            print(f"📊 Processing {len(files)} files...")
+        
+        results = process_files(files, options)
+        
+        # Display summary of errors if any
+        total_errors = sum(len(result.errors) for result in results if result.errors)
+        if total_errors > 0 and not args.quiet:
+            print(f"⚠️  {total_errors} errors occurred during processing. Check the output for details.")
+        
+        # Output results
+        write_report(results, args.format, args.output)
+        return 0
+        
+    except MetaScoutError as e:
+        print(format_error_for_cli(e, args.verbose))
         return 1
-    
-    if not files:
-        logging.error("No files found to process.")
+    except Exception as e:
+        error_msg = format_error_for_cli(e, args.verbose)
+        print(error_msg)
         return 1
-    
-    # Set up options
-    options = {
-        'skip_hashes': args.skip_hashes,
-        'max_workers': args.threads if args.threads > 0 else None,
-        'show_progress': not args.quiet,
-        'yara_rules_path': args.yara_rules
-    }
-    
-    # Process files
-    if not args.quiet:
-        print(f"Processing {len(files)} files...")
-    
-    results = process_files(files, options)
-    
-    # Output results
-    write_report(results, args.format, args.output)
-    return 0
 
 
 def handle_compare_command(args: argparse.Namespace) -> int:
