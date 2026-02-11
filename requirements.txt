@@ -22,4 +22,4 @@ macholib>=1.15.2  # macOS binary analysis
 # Optional dependencies for enhanced security features
 # yara-python>=4.1.0  # Requires additional system dependencies
 # ssdeep>=3.4  # Requires additional system dependencies
-cryptography>=35.0.0
+cryptography>=46.0.5
